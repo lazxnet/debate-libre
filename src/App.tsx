@@ -31,7 +31,7 @@ function App() {
   const [commentUsername, setCommentUsername] = useState('');
   const [newComments, setNewComments] = useState<{ [key: string]: string }>({});
   const [showNewPostForm, setShowNewPostForm] = useState(false);
-  const [activeCommentPost, setActiveCommentPost] = useState<string | null>(null);
+  const [activeCommentForm, setActiveCommentForm] = useState<string | null>(null);
 
   // Sort posts by popularity (likes + comments)
   const sortedPosts = [...posts].sort((a, b) => {
@@ -90,10 +90,11 @@ function App() {
     );
 
     setNewComments(prev => ({ ...prev, [postId]: '' }));
+    setActiveCommentForm(null); // Cerrar el formulario después de comentar
   };
 
-  const toggleCommentSection = (postId: string) => {
-    setActiveCommentPost(activeCommentPost === postId ? null : postId);
+  const toggleCommentForm = (postId: string) => {
+    setActiveCommentForm(activeCommentForm === postId ? null : postId);
   };
 
   return (
@@ -170,7 +171,7 @@ function App() {
                     <span className="text-blue-600 font-medium">{post.likes}</span>
                   </button>
                   <button
-                    onClick={() => toggleCommentSection(post.id)}
+                    onClick={() => toggleCommentForm(post.id)}
                     className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full hover:bg-purple-100 transition-colors"
                   >
                     <MessageSquare className="w-4 h-4 text-purple-600" />
@@ -180,8 +181,8 @@ function App() {
               </div>
               <p className="text-gray-700 mb-4">{post.content}</p>
 
-              {activeCommentPost === post.id && (
-                <div className="border-t pt-4">
+              <div className="border-t pt-4">
+                {activeCommentForm === post.id && (
                   <div className="mb-4">
                     <div className="space-y-2">
                       <input
@@ -215,24 +216,24 @@ function App() {
                       </div>
                     </div>
                   </div>
+                )}
 
-                  {post.comments.length > 0 && (
-                    <div className="space-y-3">
-                      {post.comments.map(comment => (
-                        <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-medium">{comment.username}</span>
-                            <span className="text-xs text-gray-500">
-                              {new Date(comment.timestamp).toLocaleString()}
-                            </span>
-                          </div>
-                          <p className="text-gray-700">{comment.content}</p>
+                {post.comments.length > 0 && (
+                  <div className="space-y-3">
+                    {post.comments.map(comment => (
+                      <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="font-medium">{comment.username}</span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(comment.timestamp).toLocaleString()}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                        <p className="text-gray-700">{comment.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
