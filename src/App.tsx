@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, ThumbsUp, Clock, MessageSquare, TrendingUp } from 'lucide-react';
+import { MessageCircle, Send, ThumbsUp, Clock, MessageSquare, TrendingUp, X } from 'lucide-react';
 
 interface Comment {
   id: string;
@@ -90,7 +90,7 @@ function App() {
     );
 
     setNewComments(prev => ({ ...prev, [postId]: '' }));
-    setActiveCommentForm(null); // Cerrar el formulario después de comentar
+    setActiveCommentForm(null);
   };
 
   const toggleCommentForm = (postId: string) => {
@@ -107,10 +107,10 @@ function App() {
               <h1 className="text-2xl font-bold text-gray-800">Foro de Debate</h1>
             </div>
             <button
-              onClick={() => setShowNewPostForm(!showNewPostForm)}
+              onClick={() => setShowNewPostForm(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
             >
-              {showNewPostForm ? 'Cancelar' : 'Nuevo Debate'}
+              Nuevo Debate
             </button>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
@@ -119,36 +119,60 @@ function App() {
           </div>
         </header>
 
+        {/* Modal para nuevo debate */}
         {showNewPostForm && (
-          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Tu nombre"
-                value={postUsername}
-                onChange={(e) => setPostUsername(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Crear nuevo debate</h2>
+                <button
+                  onClick={() => setShowNewPostForm(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                    Tu nombre
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    placeholder="Escribe tu nombre"
+                    value={postUsername}
+                    onChange={(e) => setPostUsername(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="post-content" className="block text-sm font-medium text-gray-700 mb-1">
+                    Tema del debate
+                  </label>
+                  <textarea
+                    id="post-content"
+                    value={newPost}
+                    onChange={(e) => setNewPost(e.target.value)}
+                    placeholder="¿Qué tema quieres debatir?"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={4}
+                    required
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    Publicar debate
+                  </button>
+                </div>
+              </form>
             </div>
-            <div className="flex gap-2">
-              <textarea
-                value={newPost}
-                onChange={(e) => setNewPost(e.target.value)}
-                placeholder="¿Qué tema quieres debatir?"
-                className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-                required
-              />
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                Publicar
-              </button>
-            </div>
-          </form>
+          </div>
         )}
 
         <div className="space-y-4">
@@ -182,37 +206,61 @@ function App() {
               <p className="text-gray-700 mb-4">{post.content}</p>
 
               <div className="border-t pt-4">
+                {/* Modal para comentarios */}
                 {activeCommentForm === post.id && (
-                  <div className="mb-4">
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        placeholder="Tu nombre para comentar"
-                        value={commentUsername}
-                        onChange={(e) => setCommentUsername(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Escribe un comentario..."
-                          value={newComments[post.id] || ''}
-                          onChange={(e) =>
-                            setNewComments(prev => ({
-                              ...prev,
-                              [post.id]: e.target.value,
-                            }))
-                          }
-                          className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800">Añadir comentario</h2>
                         <button
-                          onClick={() => handleComment(post.id)}
-                          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-2"
+                          onClick={() => setActiveCommentForm(null)}
+                          className="text-gray-500 hover:text-gray-700"
                         >
-                          <Send className="w-4 h-4" />
-                          Comentar
+                          <X className="w-6 h-6" />
                         </button>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor="comment-username" className="block text-sm font-medium text-gray-700 mb-1">
+                            Tu nombre
+                          </label>
+                          <input
+                            id="comment-username"
+                            type="text"
+                            placeholder="Escribe tu nombre"
+                            value={commentUsername}
+                            onChange={(e) => setCommentUsername(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="comment-content" className="block text-sm font-medium text-gray-700 mb-1">
+                            Tu comentario
+                          </label>
+                          <input
+                            id="comment-content"
+                            type="text"
+                            placeholder="Escribe tu comentario..."
+                            value={newComments[post.id] || ''}
+                            onChange={(e) =>
+                              setNewComments(prev => ({
+                                ...prev,
+                                [post.id]: e.target.value,
+                              }))
+                            }
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleComment(post.id)}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                          >
+                            <Send className="w-4 h-4" />
+                            Publicar comentario
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
