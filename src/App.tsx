@@ -31,6 +31,7 @@ function App() {
   const [commentUsername, setCommentUsername] = useState('');
   const [newComments, setNewComments] = useState<{ [key: string]: string }>({});
   const [showNewPostForm, setShowNewPostForm] = useState(false);
+  const [activeCommentPost, setActiveCommentPost] = useState<string | null>(null);
 
   // Sort posts by popularity (likes + comments)
   const sortedPosts = [...posts].sort((a, b) => {
@@ -89,6 +90,10 @@ function App() {
     );
 
     setNewComments(prev => ({ ...prev, [postId]: '' }));
+  };
+
+  const toggleCommentSection = (postId: string) => {
+    setActiveCommentPost(activeCommentPost === postId ? null : postId);
   };
 
   return (
@@ -164,65 +169,70 @@ function App() {
                     <ThumbsUp className="w-4 h-4 text-blue-600" />
                     <span className="text-blue-600 font-medium">{post.likes}</span>
                   </button>
-                  <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full">
+                  <button
+                    onClick={() => toggleCommentSection(post.id)}
+                    className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full hover:bg-purple-100 transition-colors"
+                  >
                     <MessageSquare className="w-4 h-4 text-purple-600" />
                     <span className="text-purple-600 font-medium">{post.comments.length}</span>
-                  </div>
+                  </button>
                 </div>
               </div>
               <p className="text-gray-700 mb-4">{post.content}</p>
 
-              <div className="border-t pt-4">
-                <div className="mb-4">
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Tu nombre para comentar"
-                      value={commentUsername}
-                      onChange={(e) => setCommentUsername(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                    <div className="flex gap-2">
+              {activeCommentPost === post.id && (
+                <div className="border-t pt-4">
+                  <div className="mb-4">
+                    <div className="space-y-2">
                       <input
                         type="text"
-                        placeholder="Escribe un comentario..."
-                        value={newComments[post.id] || ''}
-                        onChange={(e) =>
-                          setNewComments(prev => ({
-                            ...prev,
-                            [post.id]: e.target.value,
-                          }))
-                        }
-                        className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Tu nombre para comentar"
+                        value={commentUsername}
+                        onChange={(e) => setCommentUsername(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
                       />
-                      <button
-                        onClick={() => handleComment(post.id)}
-                        className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-2"
-                      >
-                        <Send className="w-4 h-4" />
-                        Comentar
-                      </button>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Escribe un comentario..."
+                          value={newComments[post.id] || ''}
+                          onChange={(e) =>
+                            setNewComments(prev => ({
+                              ...prev,
+                              [post.id]: e.target.value,
+                            }))
+                          }
+                          className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <button
+                          onClick={() => handleComment(post.id)}
+                          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-2"
+                        >
+                          <Send className="w-4 h-4" />
+                          Comentar
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {post.comments.length > 0 && (
-                  <div className="space-y-3">
-                    {post.comments.map(comment => (
-                      <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="font-medium">{comment.username}</span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(comment.timestamp).toLocaleString()}
-                          </span>
+                  {post.comments.length > 0 && (
+                    <div className="space-y-3">
+                      {post.comments.map(comment => (
+                        <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-medium">{comment.username}</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-gray-700">{comment.content}</p>
                         </div>
-                        <p className="text-gray-700">{comment.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
