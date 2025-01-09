@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, ThumbsUp, Clock, MessageSquare, TrendingUp, X } from 'lucide-react';
+import { MessageCircle, Send, ThumbsUp, Clock, MessageSquare, TrendingUp, X, Tag, Filter } from 'lucide-react';
+
+const TOPICS = [
+  'Tecnología',
+  'Política',
+  'Deportes',
+  'Cultura',
+  'Ciencia',
+  'Educación',
+  'Entretenimiento',
+  'Salud',
+  'Economía',
+  'Medio Ambiente'
+];
 
 interface Comment {
   id: string;
@@ -15,6 +28,23 @@ interface Post {
   likes: number;
   username: string;
   comments: Comment[];
+  topics: string[];
+}
+
+function getTopicColor(topic: string): string {
+  const colors: { [key: string]: string } = {
+    'Tecnología': 'bg-blue-100 text-blue-700',
+    'Política': 'bg-red-100 text-red-700',
+    'Deportes': 'bg-green-100 text-green-700',
+    'Cultura': 'bg-purple-100 text-purple-700',
+    'Ciencia': 'bg-indigo-100 text-indigo-700',
+    'Educación': 'bg-yellow-100 text-yellow-700',
+    'Entretenimiento': 'bg-pink-100 text-pink-700',
+    'Salud': 'bg-teal-100 text-teal-700',
+    'Economía': 'bg-orange-100 text-orange-700',
+    'Medio Ambiente': 'bg-emerald-100 text-emerald-700'
+  };
+  return colors[topic] || 'bg-gray-100 text-gray-700';
 }
 
 function App() {
@@ -24,6 +54,7 @@ function App() {
     return parsedPosts.map((post: any) => ({
       ...post,
       comments: post.comments || [],
+      topics: post.topics || []
     }));
   });
   const [newPost, setNewPost] = useState('');
@@ -32,6 +63,8 @@ function App() {
   const [newComments, setNewComments] = useState<{ [key: string]: string }>({});
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [activeCommentForm, setActiveCommentForm] = useState<string | null>(null);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
   // Sort posts by popularity (likes + comments)
   const sortedPosts = [...posts].sort((a, b) => {
@@ -40,13 +73,19 @@ function App() {
     return popularityB - popularityA;
   });
 
+  // Filter posts by selected topics
+  const filteredPosts = sortedPosts.filter(post => 
+    selectedFilters.length === 0 || 
+    post.topics.some(topic => selectedFilters.includes(topic))
+  );
+
   useEffect(() => {
     localStorage.setItem('forumPosts', JSON.stringify(posts));
   }, [posts]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPost.trim() || !postUsername.trim()) return;
+    if (!newPost.trim() || !postUsername.trim() || selectedTopics.length === 0) return;
 
     const post: Post = {
       id: Date.now().toString(),
@@ -55,11 +94,33 @@ function App() {
       likes: 0,
       username: postUsername.trim(),
       comments: [],
+      topics: selectedTopics
     };
 
     setPosts(prev => [post, ...prev]);
     setNewPost('');
+    setSelectedTopics([]);
     setShowNewPostForm(false);
+  };
+
+  const handleTopicSelection = (topic: string) => {
+    setSelectedTopics(prev => {
+      if (prev.includes(topic)) {
+        return prev.filter(t => t !== topic);
+      } else {
+        return [...prev, topic];
+      }
+    });
+  };
+
+  const handleFilterChange = (topic: string) => {
+    setSelectedFilters(prev => {
+      if (prev.includes(topic)) {
+        return prev.filter(t => t !== topic);
+      } else {
+        return [...prev, topic];
+      }
+    });
   };
 
   const handleLike = (postId: string) => {
@@ -113,9 +174,43 @@ function App() {
               Nuevo Debate
             </button>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-gray-600 mb-4">
             <TrendingUp className="w-5 h-5" />
             <p>Debates más populares ordenados por likes y comentarios</p>
+          </div>
+          
+          {/* Filtro de temas */}
+          <div className="border-t pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-5 h-5 text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-800">Filtrar por temas</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {TOPICS.map(topic => (
+                <button
+                  key={topic}
+                  onClick={() => handleFilterChange(topic)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-colors ${
+                    selectedFilters.includes(topic)
+                      ? getTopicColor(topic)
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Tag className="w-3 h-3" />
+                  <span>{topic}</span>
+                </button>
+              ))}
+            </div>
+            {selectedFilters.length > 0 && (
+              <div className="flex justify-end mt-2">
+                <button
+                  onClick={() => setSelectedFilters([])}
+                  className="text-sm text-gray-600 hover:text-gray-800"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
@@ -126,7 +221,10 @@ function App() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-800">Crear nuevo debate</h2>
                 <button
-                  onClick={() => setShowNewPostForm(false)}
+                  onClick={() => {
+                    setShowNewPostForm(false);
+                    setSelectedTopics([]);
+                  }}
                   className="text-gray-500 hover:text-gray-700"
                 >
                   <X className="w-6 h-6" />
@@ -148,6 +246,31 @@ function App() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Temas del debate
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                    {TOPICS.map(topic => (
+                      <button
+                        key={topic}
+                        type="button"
+                        onClick={() => handleTopicSelection(topic)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-colors ${
+                          selectedTopics.includes(topic)
+                            ? getTopicColor(topic)
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Tag className="w-3 h-3" />
+                        <span>{topic}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {selectedTopics.length === 0 && (
+                    <p className="text-sm text-red-500">Selecciona al menos un tema</p>
+                  )}
+                </div>
+                <div>
                   <label htmlFor="post-content" className="block text-sm font-medium text-gray-700 mb-1">
                     Tema del debate
                   </label>
@@ -165,6 +288,7 @@ function App() {
                   <button
                     type="submit"
                     className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    disabled={selectedTopics.length === 0}
                   >
                     <Send className="w-4 h-4" />
                     Publicar debate
@@ -175,8 +299,15 @@ function App() {
           </div>
         )}
 
+        {/* Mensaje cuando no hay resultados */}
+        {filteredPosts.length === 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 text-center">
+            <p className="text-gray-600">No hay debates que coincidan con los temas seleccionados.</p>
+          </div>
+        )}
+
         <div className="space-y-4">
-          {sortedPosts.map(post => (
+          {filteredPosts.map(post => (
             <div key={post.id} className="bg-white rounded-lg shadow-md p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -203,6 +334,20 @@ function App() {
                   </button>
                 </div>
               </div>
+              
+              {/* Temas del post */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {post.topics.map(topic => (
+                  <span
+                    key={topic}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getTopicColor(topic)}`}
+                  >
+                    <Tag className="w-3 h-3" />
+                    {topic}
+                  </span>
+                ))}
+              </div>
+
               <p className="text-gray-700 mb-4">{post.content}</p>
 
               <div className="border-t pt-4">
