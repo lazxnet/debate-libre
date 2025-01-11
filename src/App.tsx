@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, ThumbsUp, ThumbsDown, Clock, MessageSquare, TrendingUp, X, Tag, Filter, CornerDownRight, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Send, ThumbsUp, ThumbsDown, Clock, MessageSquare, TrendingUp, X, Tag, Filter, CornerDownRight, ArrowLeft, ImageIcon } from 'lucide-react';
 
 const TOPICS = [
   'Tecnología',
@@ -34,6 +34,7 @@ interface Post {
   username: string;
   comments: Comment[];
   topics: string[];
+  image?: string; // Nueva propiedad para la imagen
 }
 
 function getTopicColor(topic: string): string {
@@ -60,13 +61,15 @@ function App() {
       ...post,
       comments: post.comments || [],
       topics: post.topics || [],
-      dislikes: post.dislikes || 0
+      dislikes: post.dislikes || 0,
+      image: post.image || undefined
     }));
   });
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [newPost, setNewPost] = useState('');
   const [newPostTitle, setNewPostTitle] = useState('');
   const [postUsername, setPostUsername] = useState('');
+  const [newPostImage, setNewPostImage] = useState<File | null>(null);
   const [newComments, setNewComments] = useState<{ [key: string]: { content: string; username: string } }>({});
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [activeCommentForm, setActiveCommentForm] = useState<string | null>(null);
@@ -89,9 +92,16 @@ function App() {
     post.topics.some(topic => selectedFilters.includes(topic))
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPost.trim() || !newPostTitle.trim() || !postUsername.trim() || selectedTopics.length === 0) return;
+
+    let imageUrl = undefined;
+    if (newPostImage) {
+      // En un escenario real, aquí subirías la imagen a un servicio de almacenamiento
+      // y obtendrías una URL. Para este ejemplo, usaremos una URL local temporal.
+      imageUrl = URL.createObjectURL(newPostImage);
+    }
 
     const post: Post = {
       id: Date.now().toString(),
@@ -102,7 +112,8 @@ function App() {
       dislikes: 0,
       username: postUsername.trim(),
       comments: [],
-      topics: selectedTopics
+      topics: selectedTopics,
+      image: imageUrl
     };
 
     setPosts(prev => [post, ...prev]);
@@ -110,6 +121,7 @@ function App() {
     setNewPostTitle('');
     setPostUsername('');
     setSelectedTopics([]);
+    setNewPostImage(null);
     setShowNewPostForm(false);
   };
 
@@ -451,6 +463,12 @@ function App() {
                 ))}
               </div>
 
+              {selectedPost.image && (
+                <div className="mb-4">
+                  <img src={selectedPost.image} alt="Imagen del debate" className="w-full h-auto rounded-lg" />
+                </div>
+              )}
+
               <p className="text-gray-700 whitespace-pre-wrap">{selectedPost.content}</p>
             </div>
 
@@ -586,6 +604,7 @@ function App() {
                   onClick={() => {
                     setShowNewPostForm(false);
                     setSelectedTopics([]);
+                    setNewPostImage(null);
                   }}
                   className="text-gray-500 hover:text-gray-700"
                 >
@@ -660,6 +679,18 @@ function App() {
                     required
                   />
                 </div>
+                <div>
+                  <label htmlFor="post-image" className="block text-sm font-medium text-gray-700 mb-1">
+                    Imagen (opcional)
+                  </label>
+                  <input
+                    id="post-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setNewPostImage(e.target.files ? e.target.files[0] : null)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -697,7 +728,7 @@ function App() {
                     <Clock className="w-4 h-4" />
                     <span>{new Date(post.timestamp).toLocaleString()}</span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mb-3">
                     {post.topics.map(topic => (
                       <span
                         key={topic}
@@ -708,6 +739,12 @@ function App() {
                       </span>
                     ))}
                   </div>
+                  {post.image && (
+                    <div className="mb-3">
+                      <img src={post.image} alt="Imagen del debate" className="w-full h-48 object-cover rounded-lg" />
+                    </div>
+                  )}
+                  <p className="text-gray-700 line-clamp-3">{post.content}</p>
                 </div>
                 <div className="flex items-center gap-3 ml-4">
                   <button
