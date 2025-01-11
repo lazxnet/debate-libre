@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, ThumbsUp, Clock, MessageSquare, TrendingUp, X, Tag, Filter, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Send, ThumbsUp, ThumbsDown, Clock, MessageSquare, TrendingUp, X, Tag, Filter, CornerDownRight, ArrowLeft } from 'lucide-react';
 
 const TOPICS = [
   'Tecnología',
@@ -20,6 +20,8 @@ interface Comment {
   username: string;
   timestamp: number;
   likes: number;
+  dislikes: number;
+  replies: Comment[];
 }
 
 interface Post {
@@ -28,6 +30,7 @@ interface Post {
   content: string;
   timestamp: number;
   likes: number;
+  dislikes: number;
   username: string;
   comments: Comment[];
   topics: string[];
@@ -56,7 +59,8 @@ function App() {
     return parsedPosts.map((post: any) => ({
       ...post,
       comments: post.comments || [],
-      topics: post.topics || []
+      topics: post.topics || [],
+      dislikes: post.dislikes || 0
     }));
   });
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -66,25 +70,24 @@ function App() {
   const [newComments, setNewComments] = useState<{ [key: string]: { content: string; username: string } }>({});
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [activeCommentForm, setActiveCommentForm] = useState<string | null>(null);
+  const [activeReplyForm, setActiveReplyForm] = useState<{ postId: string, commentId: string } | null>(null);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-
-  // Sort posts by popularity (likes + comments)
-  const sortedPosts = [...posts].sort((a, b) => {
-    const popularityA = a.likes + a.comments.length;
-    const popularityB = b.likes + b.comments.length;
-    return popularityB - popularityA;
-  });
-
-  // Filter posts by selected topics
-  const filteredPosts = sortedPosts.filter(post =>
-    selectedFilters.length === 0 ||
-    post.topics.some(topic => selectedFilters.includes(topic))
-  );
 
   useEffect(() => {
     localStorage.setItem('forumPosts', JSON.stringify(posts));
   }, [posts]);
+
+  const sortedPosts = [...posts].sort((a, b) => {
+    const popularityA = a.likes - a.dislikes + a.comments.length;
+    const popularityB = b.likes - b.dislikes + b.comments.length;
+    return popularityB - popularityA;
+  });
+
+  const filteredPosts = sortedPosts.filter(post =>
+    selectedFilters.length === 0 ||
+    post.topics.some(topic => selectedFilters.includes(topic))
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +99,7 @@ function App() {
       content: newPost.trim(),
       timestamp: Date.now(),
       likes: 0,
+      dislikes: 0,
       username: postUsername.trim(),
       comments: [],
       topics: selectedTopics
@@ -104,6 +108,7 @@ function App() {
     setPosts(prev => [post, ...prev]);
     setNewPost('');
     setNewPostTitle('');
+    setPostUsername('');
     setSelectedTopics([]);
     setShowNewPostForm(false);
   };
@@ -134,7 +139,6 @@ function App() {
         post.id === postId ? { ...post, likes: post.likes + 1 } : post
       );
       
-      // Actualizar selectedPost si existe
       if (selectedPost && selectedPost.id === postId) {
         const updatedPost = updatedPosts.find(p => p.id === postId);
         if (updatedPost) {
@@ -146,7 +150,24 @@ function App() {
     });
   };
 
-  const handleComment = (postId: string) => {
+  const handleDislike = (postId: string) => {
+    setPosts(prev => {
+      const updatedPosts = prev.map(post =>
+        post.id === postId ? { ...post, dislikes: post.dislikes + 1 } : post
+      );
+      
+      if (selectedPost && selectedPost.id === postId) {
+        const updatedPost = updatedPosts.find(p => p.id === postId);
+        if (updatedPost) {
+          setSelectedPost(updatedPost);
+        }
+      }
+
+      return updatedPosts;
+    });
+  };
+
+  const handleComment = (postId: string, parentCommentId?: string) => {
     const commentData = newComments[postId];
     if (!commentData?.content.trim() || !commentData?.username.trim()) return;
 
@@ -156,17 +177,29 @@ function App() {
       username: commentData.username.trim(),
       timestamp: Date.now(),
       likes: 0,
+      dislikes: 0,
+      replies: []
     };
 
     setPosts(prev => {
       const updatedPosts = prev.map(post => {
         if (post.id === postId) {
-          return { ...post, comments: [...post.comments, newComment] };
+          if (parentCommentId) {
+            return {
+              ...post,
+              comments: post.comments.map(comment =>
+                comment.id === parentCommentId
+                  ? { ...comment, replies: [...comment.replies, newComment] }
+                  : comment
+              ),
+            };
+          } else {
+            return { ...post, comments: [...post.comments, newComment] };
+          }
         }
         return post;
       });
 
-      // Actualizar selectedPost si existe
       if (selectedPost && selectedPost.id === postId) {
         const updatedPost = updatedPosts.find(p => p.id === postId);
         if (updatedPost) {
@@ -179,25 +212,88 @@ function App() {
 
     setNewComments(prev => ({ ...prev, [postId]: { content: '', username: '' } }));
     setActiveCommentForm(null);
+    setActiveReplyForm(null);
   };
 
-  const handleCommentLike = (postId: string, commentId: string) => {
+  const handleCommentLike = (postId: string, commentId: string, parentCommentId?: string) => {
     setPosts(prev => {
       const updatedPosts = prev.map(post => {
         if (post.id === postId) {
-          return {
-            ...post,
-            comments: post.comments.map(comment =>
-              comment.id === commentId
-                ? { ...comment, likes: comment.likes + 1 }
-                : comment
-            ),
-          };
+          if (parentCommentId) {
+            return {
+              ...post,
+              comments: post.comments.map(comment =>
+                comment.id === parentCommentId
+                  ? {
+                      ...comment,
+                      replies: comment.replies.map(reply =>
+                        reply.id === commentId
+                          ? { ...reply, likes: reply.likes + 1 }
+                          : reply
+                      ),
+                    }
+                  : comment
+              ),
+            };
+          } else {
+            return {
+              ...post,
+              comments: post.comments.map(comment =>
+                comment.id === commentId
+                  ? { ...comment, likes: comment.likes + 1 }
+                  : comment
+              ),
+            };
+          }
         }
         return post;
       });
 
-      // Actualizar selectedPost si existe
+      if (selectedPost && selectedPost.id === postId) {
+        const updatedPost = updatedPosts.find(p => p.id === postId);
+        if (updatedPost) {
+          setSelectedPost(updatedPost);
+        }
+      }
+
+      return updatedPosts;
+    });
+  };
+
+  const handleCommentDislike = (postId: string, commentId: string, parentCommentId?: string) => {
+    setPosts(prev => {
+      const updatedPosts = prev.map(post => {
+        if (post.id === postId) {
+          if (parentCommentId) {
+            return {
+              ...post,
+              comments: post.comments.map(comment =>
+                comment.id === parentCommentId
+                  ? {
+                      ...comment,
+                      replies: comment.replies.map(reply =>
+                        reply.id === commentId
+                          ? { ...reply, dislikes: reply.dislikes + 1 }
+                          : reply
+                      ),
+                    }
+                  : comment
+              ),
+            };
+          } else {
+            return {
+              ...post,
+              comments: post.comments.map(comment =>
+                comment.id === commentId
+                  ? { ...comment, dislikes: comment.dislikes + 1 }
+                  : comment
+              ),
+            };
+          }
+        }
+        return post;
+      });
+
       if (selectedPost && selectedPost.id === postId) {
         const updatedPost = updatedPosts.find(p => p.id === postId);
         if (updatedPost) {
@@ -211,12 +307,22 @@ function App() {
 
   const toggleCommentForm = (postId: string) => {
     setActiveCommentForm(activeCommentForm === postId ? null : postId);
+    setActiveReplyForm(null);
   };
 
-  const renderComments = (comments: Comment[], postId: string) => (
+  const toggleReplyForm = (postId: string, commentId: string) => {
+    setActiveReplyForm(
+      activeReplyForm?.postId === postId && activeReplyForm?.commentId === commentId
+        ? null
+        : { postId, commentId }
+    );
+    setActiveCommentForm(null);
+  };
+
+  const renderComments = (comments: Comment[], postId: string, parentCommentId?: string) => (
     <div className="space-y-3">
       {comments.map(comment => (
-        <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+        <div key={comment.id} className={`bg-gray-50 rounded-lg p-3 ${parentCommentId ? 'ml-6' : ''}`}>
           <div className="flex justify-between items-start mb-2">
             <span className="font-medium">{comment.username}</span>
             <span className="text-xs text-gray-500">
@@ -226,13 +332,64 @@ function App() {
           <p className="text-gray-700 mb-2">{comment.content}</p>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => handleCommentLike(postId, comment.id)}
+              onClick={() => handleCommentLike(postId, comment.id, parentCommentId)}
               className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600"
             >
               <ThumbsUp className="w-4 h-4" />
               <span>{comment.likes}</span>
             </button>
+            <button
+              onClick={() => handleCommentDislike(postId, comment.id, parentCommentId)}
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600"
+            >
+              <ThumbsDown className="w-4 h-4" />
+              <span>{comment.dislikes}</span>
+            </button>
+            <button
+              onClick={() => toggleReplyForm(postId, comment.id)}
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600"
+            >
+              <CornerDownRight className="w-4 h-4" />
+              <span>Responder</span>
+            </button>
           </div>
+          {activeReplyForm?.postId === postId && activeReplyForm?.commentId === comment.id && (
+            <div className="mt-2 space-y-2">
+              <input
+                type="text"
+                placeholder="Tu nombre"
+                value={newComments[postId]?.username || ''}
+                onChange={(e) =>
+                  setNewComments(prev => ({
+                    ...prev,
+                    [postId]: { ...prev[postId], username: e.target.value },
+                  }))
+                }
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <input
+                type="text"
+                placeholder="Escribe tu respuesta..."
+                value={newComments[postId]?.content || ''}
+                onChange={(e) =>
+                  setNewComments(prev => ({
+                    ...prev,
+                    [postId]: { ...prev[postId], content: e.target.value },
+                  }))
+                }
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <div className="flex justify-end mt-2">
+                <button
+                  onClick={() => handleComment(postId, comment.id)}
+                  className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-colors text-sm"
+                >
+                  Responder
+                </button>
+              </div>
+            </div>
+          )}
+          {comment.replies && comment.replies.length > 0 && renderComments(comment.replies, postId, comment.id)}
         </div>
       ))}
     </div>
@@ -259,17 +416,27 @@ function App() {
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-700">{selectedPost.username}</span>
                   <span className="text-gray-500">•</span>
+                  <Clock className="w-4 h-4 text-gray-500" />
                   <span className="text-gray-500">
                     {new Date(selectedPost.timestamp).toLocaleString()}
                   </span>
                 </div>
-                <button
-                  onClick={() => handleLike(selectedPost.id)}
-                  className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
-                >
-                  <ThumbsUp className="w-4 h-4 text-blue-600" />
-                  <span className="text-blue-600 font-medium">{selectedPost.likes}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleLike(selectedPost.id)}
+                    className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                  >
+                    <ThumbsUp className="w-4 h-4 text-blue-600" />
+                    <span className="text-blue-600 font-medium">{selectedPost.likes}</span>
+                  </button>
+                  <button
+                    onClick={() => handleDislike(selectedPost.id)}
+                    className="flex items-center gap-1 bg-red-50 px-3 py-1 rounded-full hover:bg-red-100 transition-colors"
+                  >
+                    <ThumbsDown className="w-4 h-4 text-red-600" />
+                    <span className="text-red-600 font-medium">{selectedPost.dislikes}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
@@ -552,6 +719,16 @@ function App() {
                   >
                     <ThumbsUp className="w-4 h-4 text-blue-600" />
                     <span className="text-blue-600 font-medium">{post.likes}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDislike(post.id);
+                    }}
+                    className="flex items-center gap-1 bg-red-50 px-3 py-1 rounded-full hover:bg-red-100 transition-colors"
+                  >
+                    <ThumbsDown className="w-4 h-4 text-red-600" />
+                    <span className="text-red-600 font-medium">{post.dislikes}</span>
                   </button>
                   <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full">
                     <MessageSquare className="w-4 h-4 text-purple-600" />
