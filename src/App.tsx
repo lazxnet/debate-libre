@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, ThumbsUp, Clock, MessageSquare, TrendingUp, X, Tag, Filter, CornerDownRight, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Send, ThumbsUp, Clock, MessageSquare, TrendingUp, X, Tag, Filter, ArrowLeft } from 'lucide-react';
 
 const TOPICS = [
   'Tecnología',
@@ -20,7 +20,6 @@ interface Comment {
   username: string;
   timestamp: number;
   likes: number;
-  replies: Comment[];
 }
 
 interface Post {
@@ -67,7 +66,6 @@ function App() {
   const [newComments, setNewComments] = useState<{ [key: string]: { content: string; username: string } }>({});
   const [showNewPostForm, setShowNewPostForm] = useState(false);
   const [activeCommentForm, setActiveCommentForm] = useState<string | null>(null);
-  const [activeReplyForm, setActiveReplyForm] = useState<{ postId: string, commentId: string } | null>(null);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
@@ -148,7 +146,7 @@ function App() {
     });
   };
 
-  const handleComment = (postId: string, parentCommentId?: string) => {
+  const handleComment = (postId: string) => {
     const commentData = newComments[postId];
     if (!commentData?.content.trim() || !commentData?.username.trim()) return;
 
@@ -158,24 +156,12 @@ function App() {
       username: commentData.username.trim(),
       timestamp: Date.now(),
       likes: 0,
-      replies: [],
     };
 
     setPosts(prev => {
       const updatedPosts = prev.map(post => {
         if (post.id === postId) {
-          if (parentCommentId) {
-            return {
-              ...post,
-              comments: post.comments.map(comment =>
-                comment.id === parentCommentId
-                  ? { ...comment, replies: [...comment.replies, newComment] }
-                  : comment
-              ),
-            };
-          } else {
-            return { ...post, comments: [...post.comments, newComment] };
-          }
+          return { ...post, comments: [...post.comments, newComment] };
         }
         return post;
       });
@@ -193,39 +179,20 @@ function App() {
 
     setNewComments(prev => ({ ...prev, [postId]: { content: '', username: '' } }));
     setActiveCommentForm(null);
-    setActiveReplyForm(null);
   };
 
-  const handleCommentLike = (postId: string, commentId: string, parentCommentId?: string) => {
+  const handleCommentLike = (postId: string, commentId: string) => {
     setPosts(prev => {
       const updatedPosts = prev.map(post => {
         if (post.id === postId) {
-          if (parentCommentId) {
-            return {
-              ...post,
-              comments: post.comments.map(comment =>
-                comment.id === parentCommentId
-                  ? {
-                      ...comment,
-                      replies: comment.replies.map(reply =>
-                        reply.id === commentId
-                          ? { ...reply, likes: reply.likes + 1 }
-                          : reply
-                      ),
-                    }
-                  : comment
-              ),
-            };
-          } else {
-            return {
-              ...post,
-              comments: post.comments.map(comment =>
-                comment.id === commentId
-                  ? { ...comment, likes: comment.likes + 1 }
-                  : comment
-              ),
-            };
-          }
+          return {
+            ...post,
+            comments: post.comments.map(comment =>
+              comment.id === commentId
+                ? { ...comment, likes: comment.likes + 1 }
+                : comment
+            ),
+          };
         }
         return post;
       });
@@ -244,22 +211,12 @@ function App() {
 
   const toggleCommentForm = (postId: string) => {
     setActiveCommentForm(activeCommentForm === postId ? null : postId);
-    setActiveReplyForm(null);
   };
 
-  const toggleReplyForm = (postId: string, commentId: string) => {
-    setActiveReplyForm(
-      activeReplyForm?.postId === postId && activeReplyForm?.commentId === commentId
-        ? null
-        : { postId, commentId }
-    );
-    setActiveCommentForm(null);
-  };
-
-  const renderComments = (comments: Comment[], postId: string, parentCommentId?: string) => (
+  const renderComments = (comments: Comment[], postId: string) => (
     <div className="space-y-3">
       {comments.map(comment => (
-        <div key={comment.id} className={`bg-gray-50 rounded-lg p-3 ${parentCommentId ? 'ml-6' : ''}`}>
+        <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
           <div className="flex justify-between items-start mb-2">
             <span className="font-medium">{comment.username}</span>
             <span className="text-xs text-gray-500">
@@ -269,57 +226,13 @@ function App() {
           <p className="text-gray-700 mb-2">{comment.content}</p>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => handleCommentLike(postId, comment.id, parentCommentId)}
+              onClick={() => handleCommentLike(postId, comment.id)}
               className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600"
             >
               <ThumbsUp className="w-4 h-4" />
               <span>{comment.likes}</span>
             </button>
-            <button
-              onClick={() => toggleReplyForm(postId, comment.id)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600"
-            >
-              <CornerDownRight className="w-4 h-4" />
-              <span>Responder</span>
-            </button>
           </div>
-          {activeReplyForm?.postId === postId && activeReplyForm?.commentId === comment.id && (
-            <div className="mt-2 space-y-2">
-              <input
-                type="text"
-                placeholder="Tu nombre"
-                value={newComments[postId]?.username || ''}
-                onChange={(e) =>
-                  setNewComments(prev => ({
-                    ...prev,
-                    [postId]: { ...prev[postId], username: e.target.value },
-                  }))
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <input
-                type="text"
-                placeholder="Escribe tu respuesta..."
-                value={newComments[postId]?.content || ''}
-                onChange={(e) =>
-                  setNewComments(prev => ({
-                    ...prev,
-                    [postId]: { ...prev[postId], content: e.target.value },
-                  }))
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <div className="flex justify-end mt-2">
-                <button
-                  onClick={() => handleComment(postId, comment.id)}
-                  className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-colors text-sm"
-                >
-                  Responder
-                </button>
-              </div>
-            </div>
-          )}
-          {comment.replies && comment.replies.length > 0 && renderComments(comment.replies, postId, comment.id)}
         </div>
       ))}
     </div>
