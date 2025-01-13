@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, ThumbsUp, ThumbsDown, Clock, MessageSquare, TrendingUp, X, Tag, Filter, CornerDownRight, ArrowLeft, ImageIcon } from 'lucide-react';
+import { MessageCircle, Send, ChevronUp, ChevronDown, Clock, MessageSquare, TrendingUp, X, Tag, Filter, CornerDownRight, ArrowLeft, ImageIcon, Search, Eye, Gift } from 'lucide-react';
 
 const TOPICS = [
   'Tecnología',
@@ -19,8 +19,7 @@ interface Comment {
   content: string;
   username: string;
   timestamp: number;
-  likes: number;
-  dislikes: number;
+  score: number;
   replies: Comment[];
 }
 
@@ -29,28 +28,27 @@ interface Post {
   title: string;
   content: string;
   timestamp: number;
-  likes: number;
-  dislikes: number;
+  score: number;
   username: string;
   comments: Comment[];
   topics: string[];
-  image?: string; // Nueva propiedad para la imagen
+  image?: string;
 }
 
 function getTopicColor(topic: string): string {
   const colors: { [key: string]: string } = {
-    'Tecnología': 'bg-blue-100 text-blue-700',
-    'Política': 'bg-red-100 text-red-700',
-    'Deportes': 'bg-green-100 text-green-700',
-    'Cultura': 'bg-purple-100 text-purple-700',
-    'Ciencia': 'bg-indigo-100 text-indigo-700',
-    'Educación': 'bg-yellow-100 text-yellow-700',
-    'Entretenimiento': 'bg-pink-100 text-pink-700',
-    'Salud': 'bg-teal-100 text-teal-700',
-    'Economía': 'bg-orange-100 text-orange-700',
-    'Medio Ambiente': 'bg-emerald-100 text-emerald-700'
+    'Tecnología': 'bg-blue-100 text-blue-800',
+    'Política': 'bg-orange-100 text-orange-800',
+    'Deportes': 'bg-green-100 text-green-800',
+    'Cultura': 'bg-purple-100 text-purple-800',
+    'Ciencia': 'bg-teal-100 text-teal-800',
+    'Educación': 'bg-yellow-100 text-yellow-800',
+    'Entretenimiento': 'bg-pink-100 text-pink-800',
+    'Salud': 'bg-red-100 text-red-800',
+    'Economía': 'bg-indigo-100 text-indigo-800',
+    'Medio Ambiente': 'bg-emerald-100 text-emerald-800'
   };
-  return colors[topic] || 'bg-gray-100 text-gray-700';
+  return colors[topic] || 'bg-gray-100 text-gray-800';
 }
 
 function App() {
@@ -61,7 +59,7 @@ function App() {
       ...post,
       comments: post.comments || [],
       topics: post.topics || [],
-      dislikes: post.dislikes || 0,
+      score: post.score || 0,
       image: post.image || undefined
     }));
   });
@@ -81,11 +79,7 @@ function App() {
     localStorage.setItem('forumPosts', JSON.stringify(posts));
   }, [posts]);
 
-  const sortedPosts = [...posts].sort((a, b) => {
-    const popularityA = a.likes - a.dislikes + a.comments.length;
-    const popularityB = b.likes - b.dislikes + b.comments.length;
-    return popularityB - popularityA;
-  });
+  const sortedPosts = [...posts].sort((a, b) => b.score - a.score);
 
   const filteredPosts = sortedPosts.filter(post =>
     selectedFilters.length === 0 ||
@@ -98,8 +92,6 @@ function App() {
 
     let imageUrl = undefined;
     if (newPostImage) {
-      // En un escenario real, aquí subirías la imagen a un servicio de almacenamiento
-      // y obtendrías una URL. Para este ejemplo, usaremos una URL local temporal.
       imageUrl = URL.createObjectURL(newPostImage);
     }
 
@@ -108,8 +100,7 @@ function App() {
       title: newPostTitle.trim(),
       content: newPost.trim(),
       timestamp: Date.now(),
-      likes: 0,
-      dislikes: 0,
+      score: 0,
       username: postUsername.trim(),
       comments: [],
       topics: selectedTopics,
@@ -145,27 +136,10 @@ function App() {
     });
   };
 
-  const handleLike = (postId: string) => {
+  const handleVote = (postId: string, value: number) => {
     setPosts(prev => {
       const updatedPosts = prev.map(post =>
-        post.id === postId ? { ...post, likes: post.likes + 1 } : post
-      );
-      
-      if (selectedPost && selectedPost.id === postId) {
-        const updatedPost = updatedPosts.find(p => p.id === postId);
-        if (updatedPost) {
-          setSelectedPost(updatedPost);
-        }
-      }
-
-      return updatedPosts;
-    });
-  };
-
-  const handleDislike = (postId: string) => {
-    setPosts(prev => {
-      const updatedPosts = prev.map(post =>
-        post.id === postId ? { ...post, dislikes: post.dislikes + 1 } : post
+        post.id === postId ? { ...post, score: post.score + value } : post
       );
       
       if (selectedPost && selectedPost.id === postId) {
@@ -188,8 +162,7 @@ function App() {
       content: commentData.content.trim(),
       username: commentData.username.trim(),
       timestamp: Date.now(),
-      likes: 0,
-      dislikes: 0,
+      score: 0,
       replies: []
     };
 
@@ -227,7 +200,7 @@ function App() {
     setActiveReplyForm(null);
   };
 
-  const handleCommentLike = (postId: string, commentId: string, parentCommentId?: string) => {
+  const handleCommentVote = (postId: string, commentId: string, value: number, parentCommentId?: string) => {
     setPosts(prev => {
       const updatedPosts = prev.map(post => {
         if (post.id === postId) {
@@ -240,7 +213,7 @@ function App() {
                       ...comment,
                       replies: comment.replies.map(reply =>
                         reply.id === commentId
-                          ? { ...reply, likes: reply.likes + 1 }
+                          ? { ...reply, score: reply.score + value }
                           : reply
                       ),
                     }
@@ -252,52 +225,7 @@ function App() {
               ...post,
               comments: post.comments.map(comment =>
                 comment.id === commentId
-                  ? { ...comment, likes: comment.likes + 1 }
-                  : comment
-              ),
-            };
-          }
-        }
-        return post;
-      });
-
-      if (selectedPost && selectedPost.id === postId) {
-        const updatedPost = updatedPosts.find(p => p.id === postId);
-        if (updatedPost) {
-          setSelectedPost(updatedPost);
-        }
-      }
-
-      return updatedPosts;
-    });
-  };
-
-  const handleCommentDislike = (postId: string, commentId: string, parentCommentId?: string) => {
-    setPosts(prev => {
-      const updatedPosts = prev.map(post => {
-        if (post.id === postId) {
-          if (parentCommentId) {
-            return {
-              ...post,
-              comments: post.comments.map(comment =>
-                comment.id === parentCommentId
-                  ? {
-                      ...comment,
-                      replies: comment.replies.map(reply =>
-                        reply.id === commentId
-                          ? { ...reply, dislikes: reply.dislikes + 1 }
-                          : reply
-                      ),
-                    }
-                  : comment
-              ),
-            };
-          } else {
-            return {
-              ...post,
-              comments: post.comments.map(comment =>
-                comment.id === commentId
-                  ? { ...comment, dislikes: comment.dislikes + 1 }
+                  ? { ...comment, score: comment.score + value }
                   : comment
               ),
             };
@@ -332,76 +260,72 @@ function App() {
   };
 
   const renderComments = (comments: Comment[], postId: string, parentCommentId?: string) => (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {comments.map(comment => (
-        <div key={comment.id} className={`bg-gray-50 rounded-lg p-3 ${parentCommentId ? 'ml-6' : ''}`}>
-          <div className="flex justify-between items-start mb-2">
-            <span className="font-medium">{comment.username}</span>
-            <span className="text-xs text-gray-500">
-              {new Date(comment.timestamp).toLocaleString()}
-            </span>
-          </div>
-          <p className="text-gray-700 mb-2">{comment.content}</p>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => handleCommentLike(postId, comment.id, parentCommentId)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600"
-            >
-              <ThumbsUp className="w-4 h-4" />
-              <span>{comment.likes}</span>
+        <div key={comment.id} className={`flex ${parentCommentId ? 'ml-8' : ''}`}>
+          <div className="flex flex-col items-center mr-4">
+            <button onClick={() => handleCommentVote(postId, comment.id, 1, parentCommentId)} className="text-gray-500 hover:text-orange-500">
+              <ChevronUp className="w-6 h-6" />
             </button>
-            <button
-              onClick={() => handleCommentDislike(postId, comment.id, parentCommentId)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-600"
-            >
-              <ThumbsDown className="w-4 h-4" />
-              <span>{comment.dislikes}</span>
-            </button>
-            <button
-              onClick={() => toggleReplyForm(postId, comment.id)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600"
-            >
-              <CornerDownRight className="w-4 h-4" />
-              <span>Responder</span>
+            <span className="text-lg font-medium text-gray-700">{comment.score}</span>
+            <button onClick={() => handleCommentVote(postId, comment.id, -1, parentCommentId)} className="text-gray-500 hover:text-orange-500">
+              <ChevronDown className="w-6 h-6" />
             </button>
           </div>
-          {activeReplyForm?.postId === postId && activeReplyForm?.commentId === comment.id && (
-            <div className="mt-2 space-y-2">
-              <input
-                type="text"
-                placeholder="Tu nombre"
-                value={newComments[postId]?.username || ''}
-                onChange={(e) =>
-                  setNewComments(prev => ({
-                    ...prev,
-                    [postId]: { ...prev[postId], username: e.target.value },
-                  }))
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <input
-                type="text"
-                placeholder="Escribe tu respuesta..."
-                value={newComments[postId]?.content || ''}
-                onChange={(e) =>
-                  setNewComments(prev => ({
-                    ...prev,
-                    [postId]: { ...prev[postId], content: e.target.value },
-                  }))
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <div className="flex justify-end mt-2">
-                <button
-                  onClick={() => handleComment(postId, comment.id)}
-                  className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-colors text-sm"
-                >
-                  Responder
-                </button>
+          <div className="flex-1">
+            <div className="bg-white border border-gray-200 p-4 rounded-md">
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-medium text-blue-600">{comment.username}</span>
+                <span className="text-xs text-gray-500">
+                  {new Date(comment.timestamp).toLocaleString()}
+                </span>
               </div>
+              <p className="text-gray-700 mb-2">{comment.content}</p>
+              <button
+                onClick={() => toggleReplyForm(postId, comment.id)}
+                className="text-sm text-gray-500 hover:text-blue-600"
+              >
+                Responder
+              </button>
             </div>
-          )}
-          {comment.replies && comment.replies.length > 0 && renderComments(comment.replies, postId, comment.id)}
+            {activeReplyForm?.postId === postId && activeReplyForm?.commentId === comment.id && (
+              <div className="mt-2 space-y-2">
+                <input
+                  type="text"
+                  placeholder="Tu nombre"
+                  value={newComments[postId]?.username || ''}
+                  onChange={(e) =>
+                    setNewComments(prev => ({
+                      ...prev,
+                      [postId]: { ...prev[postId], username: e.target.value },
+                    }))
+                  }
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <textarea
+                  placeholder="Escribe tu respuesta..."
+                  value={newComments[postId]?.content || ''}
+                  onChange={(e) =>
+                    setNewComments(prev => ({
+                      ...prev,
+                      [postId]: { ...prev[postId], content: e.target.value },
+                    }))
+                  }
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                />
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={() => handleComment(postId, comment.id)}
+                    className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition-colors text-sm"
+                  >
+                    Responder
+                  </button>
+                </div>
+              </div>
+            )}
+            {comment.replies && comment.replies.length > 0 && renderComments(comment.replies, postId, comment.id)}
+          </div>
         </div>
       ))}
     </div>
@@ -410,129 +334,125 @@ function App() {
   if (selectedPost) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <button
-                onClick={() => setSelectedPost(null)}
-                className="text-gray-600 hover:text-gray-800 flex items-center gap-2"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Volver</span>
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">{selectedPost.title}</h1>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-700">{selectedPost.username}</span>
-                  <span className="text-gray-500">•</span>
-                  <Clock className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-500">
-                    {new Date(selectedPost.timestamp).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleLike(selectedPost.id)}
-                    className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
-                  >
-                    <ThumbsUp className="w-4 h-4 text-blue-600" />
-                    <span className="text-blue-600 font-medium">{selectedPost.likes}</span>
-                  </button>
-                  <button
-                    onClick={() => handleDislike(selectedPost.id)}
-                    className="flex items-center gap-1 bg-red-50 px-3 py-1 rounded-full hover:bg-red-100 transition-colors"
-                  >
-                    <ThumbsDown className="w-4 h-4 text-red-600" />
-                    <span className="text-red-600 font-medium">{selectedPost.dislikes}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                {selectedPost.topics.map(topic => (
-                  <span
-                    key={topic}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getTopicColor(topic)}`}
-                  >
-                    <Tag className="w-3 h-3" />
-                    {topic}
-                  </span>
-                ))}
-              </div>
-
-              {selectedPost.image && (
-                <div className="mb-4">
-                  <img src={selectedPost.image} alt="Imagen del debate" className="w-full h-auto rounded-lg" />
-                </div>
-              )}
-
-              <p className="text-gray-700 whitespace-pre-wrap">{selectedPost.content}</p>
-            </div>
-
-            <div className="border-t pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  Comentarios ({selectedPost.comments.length})
-                </h2>
+        <header className="bg-white border-t-4 border-orange-500 shadow-sm mb-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
                 <button
-                  onClick={() => toggleCommentForm(selectedPost.id)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  onClick={() => setSelectedPost(null)}
+                  className="text-gray-600 hover:text-gray-800 flex items-center gap-2 mr-4"
                 >
-                  Añadir comentario
+                  <ArrowLeft className="w-5 h-5" />
+                  <span>Volver</span>
+                </button>
+                <h1 className="text-2xl font-bold text-gray-900">DebateLibre</h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                <button className="text-gray-600 hover:text-gray-800">Acerca de</button>
+                <button className="text-gray-600 hover:text-gray-800">Productos</button>
+                <button className="text-gray-600 hover:text-gray-800">Para equipos</button>
+              </div>
+            </div>
+          </div>
+        </header>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-start">
+              <div className="flex flex-col items-center mr-4">
+                <button onClick={() => handleVote(selectedPost.id, 1)} className="text-gray-500 hover:text-orange-500">
+                  <ChevronUp className="w-8 h-8" />
+                </button>
+                <span className="text-2xl font-medium text-gray-700">{selectedPost.score}</span>
+                <button onClick={() => handleVote(selectedPost.id, -1)} className="text-gray-500 hover:text-orange-500">
+                  <ChevronDown className="w-8 h-8" />
                 </button>
               </div>
-
-              {activeCommentForm === selectedPost.id && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="comment-username" className="block text-sm font-medium text-gray-700 mb-1">
-                        Tu nombre
-                      </label>
-                      <input
-                        id="comment-username"
-                        type="text"
-                        placeholder="Escribe tu nombre"
-                        value={newComments[selectedPost.id]?.username || ''}
-                        onChange={(e) => setNewComments(prev => ({
-                          ...prev,
-                          [selectedPost.id]: { ...prev[selectedPost.id], username: e.target.value },
-                        }))}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="comment-content" className="block text-sm font-medium text-gray-700 mb-1">
-                        Tu comentario
-                      </label>
-                      <textarea
-                        id="comment-content"
-                        placeholder="Escribe tu comentario..."
-                        value={newComments[selectedPost.id]?.content || ''}
-                        onChange={(e) => setNewComments(prev => ({
-                          ...prev,
-                          [selectedPost.id]: { ...prev[selectedPost.id], content: e.target.value },
-                        }))}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows={4}
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => handleComment(selectedPost.id)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                      >
-                        Publicar comentario
-                      </button>
-                    </div>
-                  </div>
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">{selectedPost.title}</h1>
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+                  <span className="font-medium text-blue-600">{selectedPost.username}</span>
+                  <span>•</span>
+                  <Clock className="w-4 h-4" />
+                  <span>{new Date(selectedPost.timestamp).toLocaleString()}</span>
                 </div>
-              )}
-
-              {renderComments(selectedPost.comments, selectedPost.id)}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {selectedPost.topics.map(topic => (
+                    <span
+                      key={topic}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getTopicColor(topic)}`}
+                    >
+                      <Tag className="w-3 h-3" />
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+                {selectedPost.image && (
+                  <div className="mb-4 max-w-md mx-auto">
+                    <img src={selectedPost.image} alt="Imagen del debate" className="w-full h-auto rounded-lg object-cover" style={{maxHeight: '300px'}} />
+                  </div>
+                )}
+                <p className="text-gray-700 whitespace-pre-wrap mb-6">{selectedPost.content}</p>
+                <div className="border-t pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800">
+                      {selectedPost.comments.length} Respuesta{selectedPost.comments.length !== 1 ? 's' : ''}
+                    </h2>
+                    <button
+                      onClick={() => toggleCommentForm(selectedPost.id)}
+                      className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                    >
+                      Añadir respuesta
+                    </button>
+                  </div>
+                  {activeCommentForm === selectedPost.id && (
+                    <div className="bg-white border border-gray-200 rounded-md p-4 mb-4">
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor="comment-username" className="block text-sm font-medium text-gray-700 mb-1">
+                            Tu nombre
+                          </label>
+                          <input
+                            id="comment-username"
+                            type="text"
+                            placeholder="Escribe tu nombre"
+                            value={newComments[selectedPost.id]?.username || ''}
+                            onChange={(e) => setNewComments(prev => ({
+                              ...prev,
+                              [selectedPost.id]: { ...prev[selectedPost.id], username: e.target.value },
+                            }))}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="comment-content" className="block text-sm font-medium text-gray-700 mb-1">
+                            Tu respuesta
+                          </label>
+                          <textarea
+                            id="comment-content"
+                            placeholder="Escribe tu respuesta..."
+                            value={newComments[selectedPost.id]?.content || ''}
+                            onChange={(e) => setNewComments(prev => ({
+                              ...prev,
+                              [selectedPost.id]: { ...prev[selectedPost.id], content: e.target.value },
+                            }))}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows={4}
+                          />
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleComment(selectedPost.id)}
+                            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                          >
+                            Publicar respuesta
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {renderComments(selectedPost.comments, selectedPost.id)}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -542,241 +462,227 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="max-w-4xl mx-auto p-4">
-        <header className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-800">Foro de Debate</h1>
+      <header className="bg-white border-t-4 border-orange-500 shadow-sm mb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900">DebateLibre</h1>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  className="w-64 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+              </div>
+              <button className="text-gray-600 hover:text-gray-800">Acerca de</button>
+              <button className="text-gray-600 hover:text-gray-800">Productos</button>
+              <button className="text-gray-600 hover:text-gray-800">Para equipos</button>
             </div>
-            <button
-              onClick={() => setShowNewPostForm(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Nuevo Debate
-            </button>
           </div>
-          <div className="flex items-center gap-2 text-gray-600 mb-4">
-            <TrendingUp className="w-5 h-5" />
-            <p>Debates más populares ordenados por likes y comentarios</p>
-          </div>
-
-          <div className="border-t pt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-5 h-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-800">Filtrar por temas</h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-              {TOPICS.map(topic => (
-                <button
-                  key={topic}
-                  onClick={() => handleFilterChange(topic)}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                    selectedFilters.includes(topic)
-                      ? getTopicColor(topic)
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <Tag className="w-3 h-3" />
-                  <span>{topic}</span>
-                </button>
-              ))}
-            </div>
-            {selectedFilters.length > 0 && (
-              <div className="flex justify-end mt-2">
+        </div>
+      </header>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex gap-6">
+          <div className="w-64 flex-shrink-0">
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">Filtrar por temas</h2>
+              <div className="space-y-2">
+                {TOPICS.map(topic => (
+                  <button
+                    key={topic}
+                    onClick={() => handleFilterChange(topic)}
+                    className={`flex items-center w-full px-3 py-1.5 rounded-full text-sm transition-colors ${
+                      selectedFilters.includes(topic)
+                        ? getTopicColor(topic)
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Tag className="w-3 h-3 mr-2" />
+                    <span>{topic}</span>
+                  </button>
+                ))}
+              </div>
+              {selectedFilters.length > 0 && (
                 <button
                   onClick={() => setSelectedFilters([])}
-                  className="text-sm text-gray-600 hover:text-gray-800"
+                  className="mt-4 text-sm text-blue-600 hover:text-blue-800"
                 >
                   Limpiar filtros
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </header>
-
-        {showNewPostForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4">
+          <div className="flex-1">
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">Crear nuevo debate</h2>
+                <h2 className="text-xl font-semibold text-gray-800">Debates</h2>
                 <button
-                  onClick={() => {
-                    setShowNewPostForm(false);
-                    setSelectedTopics([]);
-                    setNewPostImage(null);
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
+                  onClick={() => setShowNewPostForm(true)}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
                 >
-                  <X className="w-6 h-6" />
+                  Nuevo Debate
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                    Tu nombre
-                  </label>
-                  <input
-                    id="username"
-                    type="text"
-                    placeholder="Escribe tu nombre"
-                    value={postUsername}
-                    onChange={(e) => setPostUsername(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="post-title" className="block text-sm font-medium text-gray-700 mb-1">
-                    Título del debate
-                  </label>
-                  <input
-                    id="post-title"
-                    type="text"
-                    placeholder="Escribe un título para tu debate"
-                    value={newPostTitle}
-                    onChange={(e) => setNewPostTitle(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Temas del debate
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
-                    {TOPICS.map(topic => (
-                      <button
-                        key={topic}
-                        type="button"
-                        onClick={() => handleTopicSelection(topic)}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                          selectedTopics.includes(topic)
-                            ? getTopicColor(topic)
-                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        <Tag className="w-3 h-3" />
-                        <span>{topic}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {selectedTopics.length === 0 && (
-                    <p className="text-sm text-red-500">Selecciona al menos un tema</p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="post-content" className="block text-sm font-medium text-gray-700 mb-1">
-                    Contenido del debate
-                  </label>
-                  <textarea
-                    id="post-content"
-                    value={newPost}
-                    onChange={(e) => setNewPost(e.target.value)}
-                    placeholder="¿Qué quieres debatir?"
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={4}
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="post-image" className="block text-sm font-medium text-gray-700 mb-1">
-                    Imagen (opcional)
-                  </label>
-                  <input
-                    id="post-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setNewPostImage(e.target.files ? e.target.files[0] : null)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-                    disabled={selectedTopics.length === 0}
+              <div className="space-y-4">
+                {filteredPosts.map(post => (
+                  <div
+                    key={post.id}
+                    className="flex border-b border-gray-200 pb-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => setSelectedPost(post)}
                   >
-                    <Send className="w-4 h-4" />
-                    Publicar debate
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {filteredPosts.length === 0 && (
-          <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <p className="text-gray-600">No hay debates que coincidan con los temas seleccionados.</p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {filteredPosts.map(post => (
-            <div
-              key={post.id}
-              className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedPost(post)}
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">{post.title}</h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-                    <span className="font-medium">{post.username}</span>
-                    <span>•</span>
-                    <Clock className="w-4 h-4" />
-                    <span>{new Date(post.timestamp).toLocaleString()}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {post.topics.map(topic => (
-                      <span
-                        key={topic}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getTopicColor(topic)}`}
-                      >
-                        <Tag className="w-3 h-3" />
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
-                  {post.image && (
-                    <div className="mb-3">
-                      <img src={post.image} alt="Imagen del debate" className="w-full h-48 object-cover rounded-lg" />
+                    <div className="flex-shrink-0 mr-3 flex flex-col items-center text-center">
+                      <span className="text-2xl font-medium text-gray-700">{post.score}</span>
+                      <span className="text-sm text-gray-500">votos</span>
                     </div>
-                  )}
-                  <p className="text-gray-700 line-clamp-3">{post.content}</p>
-                </div>
-                <div className="flex items-center gap-3 ml-4">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleLike(post.id);
-                    }}
-                    className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors"
-                  >
-                    <ThumbsUp className="w-4 h-4 text-blue-600" />
-                    <span className="text-blue-600 font-medium">{post.likes}</span>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDislike(post.id);
-                    }}
-                    className="flex items-center gap-1 bg-red-50 px-3 py-1 rounded-full hover:bg-red-100 transition-colors"
-                  >
-                    <ThumbsDown className="w-4 h-4 text-red-600" />
-                    <span className="text-red-600 font-medium">{post.dislikes}</span>
-                  </button>
-                  <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-full">
-                    <MessageSquare className="w-4 h-4 text-purple-600" />
-                    <span className="text-purple-600 font-medium">{post.comments.length}</span>
+                    <div className="flex-shrink-0 mr-3 flex flex-col items-center text-center">
+                      <span className="text-2xl font-medium text-gray-700">{post.comments.length}</span>
+                      <span className="text-sm text-gray-500">respuestas</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-blue-600 hover:text-blue-800 mb-2">{post.title}</h3>
+                      <p className="text-gray-600 mb-2 line-clamp-2">{post.content}</p>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {post.topics.map(topic => (
+                          <span
+                            key={topic}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${getTopicColor(topic)}`}
+                          >
+                            <Tag className="w-3 h-3" />
+                            {topic}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                        <span>preguntado {new Date(post.timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="flex-grow"></span>
+                        <span className="font-medium text-blue-600">{post.username}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
-          ))}
+          </div>
         </div>
       </div>
+
+      {showNewPostForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Crear nuevo debate</h2>
+              <button
+                onClick={() => {
+                  setShowNewPostForm(false);
+                  setSelectedTopics([]);
+                  setNewPostImage(null);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                  Tu nombre
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  placeholder="Escribe tu nombre"
+                  value={postUsername}
+                  onChange={(e) => setPostUsername(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="post-title" className="block text-sm font-medium text-gray-700 mb-1">
+                  Título del debate
+                </label>
+                <input
+                  id="post-title"
+                  type="text"
+                  placeholder="Escribe un título para tu debate"
+                  value={newPostTitle}
+                  onChange={(e) => setNewPostTitle(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Temas del debate
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                  {TOPICS.map(topic => (
+                    <button
+                      key={topic}
+                      type="button"
+                      onClick={() => handleTopicSelection(topic)}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm transition-colors ${
+                        selectedTopics.includes(topic)
+                          ? getTopicColor(topic)
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Tag className="w-3 h-3" />
+                      <span>{topic}</span>
+                    </button>
+                  ))}
+                </div>
+                {selectedTopics.length === 0 && (
+                  <p className="text-sm text-red-500">Selecciona al menos un tema</p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="post-content" className="block text-sm font-medium text-gray-700 mb-1">
+                  Contenido del debate
+                </label>
+                <textarea
+                  id="post-content"
+                  value={newPost}
+                  onChange={(e) => setNewPost(e.target.value)}
+                  placeholder="¿Qué quieres debatir?"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="post-image" className="block text-sm font-medium text-gray-700 mb-1">
+                  Imagen (opcional)
+                </label>
+                <input
+                  id="post-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNewPostImage(e.target.files ? e.target.files[0] : null)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2"
+                  disabled={selectedTopics.length === 0}
+                >
+                  <Send className="w-4 h-4" />
+                  Publicar debate
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {filteredPosts.length === 0 && (
+        <div className="bg-white rounded-lg shadow-md p-6 text-center">
+          <p className="text-gray-600">No hay debates que coincidan con los temas seleccionados.</p>
+        </div>
+      )}
     </div>
   );
 }
